@@ -1,0 +1,402 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+        <title>Hello JUnit5</title>
+
+        <link rel="stylesheet" href="css/reveal.css">
+        <link rel="stylesheet" href="css/theme/black.css">
+
+        <!-- Theme used for syntax highlighting of code -->
+        <link rel="stylesheet" href="lib/css/zenburn.css">
+
+        <!-- Printing and PDF exports -->
+        <script>
+            var link = document.createElement( 'link' );
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+            document.getElementsByTagName( 'head' )[0].appendChild( link );
+        </script>
+    </head>
+    <body>
+        <div class="reveal">
+            <div class="slides">
+                <section>
+                    <h1>Hello JUnit5</h1>
+                </section>
+
+                <section>
+                    <h2>Quickstart</h2>
+                    <p>JUnit5 with IntelliJ</p>
+
+                    Create a new Gradle project and add the dependency:
+                    <pre><code>
+testCompile "org.junit.jupiter:junit-jupiter-api:5.0.0-M4"
+                    </code></pre>
+
+                    <aside class="notes">
+                        https://stackoverflow.com/questions/3466850/complex-password-regular-expression
+
+/* 
+The password must then contain characters from at least 3 of the following 4 rules:
+Upper case
+Lower case
+Numbers
+Non-alpha numeric
+*/
+                        ^(?:(?=.*[a-z])(?:(?=.*[A-Z])(?=.*[\d\W])|(?=.*\W)(?=.*\d))|(?=.*\W)(?=.*[A-Z])(?=.*\d)).{8,}$
+
+                    </aside>
+
+                </section>
+                <section>
+                    <h2>New Annotations</h2>
+                    <ul>
+                        <li>@Test</li>
+                        <li>@BeforeEach (was @Before)</li>
+                        <li>@BeforeAll (was @BeforeClass)</li>
+                        <li>@Disabled (was @Ignore)</li>
+                    </ul>
+                    <p>No more properties on annotations <br/>
+                    <s><pre><code>@Test(expect=Exception.class))</code></pre></s>
+                </section>
+                <section>
+                    <h2>Readability</h2>
+                    <p>Tests don't have to be public</p>
+                    <pre class="stretch"><code>class PasswordPolicyTest {
+
+    PasswordPolicy passwordPolicy;
+
+    @BeforeEach
+    void setUp() {
+        passwordPolicy = new PasswordPolicy();
+    }
+
+    @Test
+    void shouldMatchPasswordPolicy() {
+        assertTrue(passwordPolicy.validatePassword("ABCdef9!"));
+    }
+
+    @Test
+    void shouldNotMatchPasswordPolicy() {
+        assertFalse(passwordPolicy.validatePassword("123456"));
+    }
+}
+</code></pre>
+                </section>
+
+                <section>
+                    <h2>Java 8 Lambda Assertions</h2>
+                    <pre class="wide"><code contenteditable>@Test
+void shouldMatchPasswordPolicy() {
+    assertAll(
+            () -> assertTrue(passwordPolicy.validatePassword("ABCdef9!")),
+            () -> assertTrue(passwordPolicy.validatePassword("VeryLongPasswordWithNumber0AndQuestionMark?")),
+            () -> assertTrue(passwordPolicy.validatePassword("jdhkfgjhdf/()!!888AAA"))
+    );
+}
+</code></pre>
+
+                </section>
+
+
+                <section>
+                    <h2>Parameterized Tests</h2>
+                    <pre><code>testCompile "org.junit.jupiter:junit-jupiter-params:5.0.0-M4"
+                    </code></pre>
+
+                    <pre><code contenteditable>@ParameterizedTest
+@MethodSource(names = "passwordsToTest")
+void shouldMatchPasswordPolicy(String password, Matcher matcher) {
+    assertThat(passwordPolicy.matchPasswordPolicy(password), matcher);
+}
+
+static Stream&lt;Arguments> passwordsToTest() {
+    return Stream.of(
+            ObjectArrayArguments.create("ABde0eee!", is(true)),
+            ObjectArrayArguments.create("dfnfg", is(false))
+    );
+}
+</pre></code>
+
+                </section>
+
+
+                <section>
+                    <h2>Exception Testing</h2>
+                    <pre><code contenteditable>@Test
+void shouldThrowExceptionWhenNull() {
+    Throwable exception = assertThrows(IllegalArgumentException.class, 
+            () -> passwordPolicy.validatePassword(null));
+
+    assertEquals("password may not be null", exception.getMessage());
+}</code></pre>
+                </section>
+
+
+                <section>
+                    <h2>Nested Tests</h2>
+                    <p>BDD style for JUnit. Finally :-)</p>
+                    <pre class="stretch"><code contenteditable>@Nested
+class UserControllerNestedTest {
+
+    UserController userController;
+
+    @BeforeEach
+    void setUp() {
+        userController = new UserController();
+    }
+
+    @Nested
+    @DisplayName("An anonymous user")
+    class anonymousUser {
+
+        @Nested
+        @DisplayName("creates a user account")
+        class createsAUserAccount {
+
+            @Test
+            void returnsCreated() {
+                //...
+            }
+
+            @Test
+            void failWhenUsernameAlreadyExists() {
+                //...
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("An authenticated user")
+    class authenticatesUser {
+        @Test
+        @DisplayName("gets redirected to homepage")
+        void redirectsToHomepage() {
+            //...
+        }
+    }
+}
+
+                    </code></pre>
+                </section>
+
+
+                <section>
+                    <h2>Assumptions</h2>
+                    Assumptions can be used to conditionally run a test:
+                    <pre><code contenteditable>@Test
+void thatEncodedPasswordsAreDifferent() {
+    assumingThat("CI".equals(System.getenv("ENV")),
+    () -> {
+        String encoded1 = encoder.encodePassword("some-password");
+        String encoded2 = encoder.encodePassword("some-password");
+        assertNotEquals(encoded1, encoded2, "passwords should not match");
+    });
+}
+</code></pre>
+
+                    <aside class="notes">
+                            compile('org.springframework.boot:spring-boot-starter-security')
+                    </aside>
+
+                </section>
+
+                <section>
+                    <h2>Tags</h2>
+                    <pre><code contenteditable>@Test
+@Tag("slow")
+void thatEncodedPasswordsAreDifferent() {
+    String encoded1 = encoder.encodePassword("some-password");
+    String encoded2 = encoder.encodePassword("some-password");
+    assertNotEquals(encoded1, encoded2, "passwords should not match");
+}</code></pre>
+                </section>
+
+                <section>
+                    <h2>Gradle Plugin</h2>
+                    The JUnit Platform plugin has to be enabled <br/> and the Jupiter Engine must be available as testRuntime:
+                    <pre><code contenteditable>buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies { classpath 'org.junit.platform:junit-platform-gradle-plugin:1.0.0-M4' }
+}
+apply plugin: 'org.junit.platform.gradle.plugin'
+
+dependencies {
+    testCompile "org.junit.jupiter:junit-jupiter-api:5.0.0-M4"
+    testRuntime "org.junit.jupiter:junit-jupiter-engine:5.0.0-M4"
+}
+
+junitPlatform {
+    filters {
+        tags { exclude 'slow' }
+    }
+}
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>TestFactory</h2>
+                    Tests can be created at runtime (!)<br/>
+                    Use-cases: TCK, real test data, ...
+
+                    <pre><code contenteditable data-trim>
+@TestFactory
+Stream&lt;DynamicTest> dynamicTests() {
+    return IntStream.of(1, 2, 3, 4, 6).mapToObj(
+        i -> dynamicTest(i + " should be equal", () -> assertTrue(i % 2 == 0))
+    );
+}</code></pre>
+                </section>
+
+
+                <section>
+                    <h2>Extensions</h2>
+                    Extensions replace <em>Runners</em> and <em>Rules</em>.
+
+<pre><code contenteditable>public class MyExtension implements BeforeTestExecutionCallback, AfterTestExecutionCallback {
+
+    private static final Logger logger = getLogger(MyExtension.class);
+    
+    @Override
+    public void beforeTestExecution(TestExtensionContext context) throws Exception {
+        context.getStore().put(context.getTestMethod().get().getName(), System.currentTimeMillis());
+    }
+
+    @Override
+    public void afterTestExecution(TestExtensionContext context) throws Exception {
+        Method testMethod = context.getTestMethod().get();
+        long start = context.getStore().remove(testMethod.getName(), long.class);
+        long duration = System.currentTimeMillis() - start;
+
+        logger.info("Test {} took {} ms", testMethod.getName(), duration);
+    }
+
+}
+</code></pre>
+
+                </section>
+
+                <section>
+                    <h2>Scenario Tests</h2>
+                    <p>(Planned for M5)</p>
+                    <pre class="stretch"><code contenteditable>@ScenarioTest
+class WebSecurityScenarioTest {
+
+    @Step(next = "login")
+    void visitPageRequiringAuthorizationWhileNotLoggedIn() {
+        // attempt to visit page which requires that a user is logged in
+        // assert user is redirected to login page
+    }
+
+    @Step(next = "visitSecondPageRequiringAuthorizationWhileLoggedIn")
+    void login() {
+        // submit login form with valid credentials
+        // assert user is redirected back to previous page requiring authorization
+    }
+
+    @Step(next = "logout")
+    void visitSecondPageRequiringAuthorizationWhileLoggedIn() {
+        // visit another page which requires that a user is logged in
+        // assert user can access page
+    }
+
+    @Step(next = END)
+    void logout() {
+        // visit logout URL
+        // assert user has been logged out
+    }
+
+}
+                    </code></pre>
+                </section>
+
+                <section>
+                    <h2>No Hamcrest dependency</h2>
+                    Use <a href="http://joel-costigliola.github.io/assertj/">AssertJ</a> (for fluent API)!
+                    <pre><code>testCompile 'org.assertj:assertj-core:3.8.0'</code></pre>
+                </section>
+
+
+                <section>
+                    JUnit 5 = JUnit Platform + JUnit Jupiter + JUnit Vintage
+                </section>
+
+                <section>
+                    <h2>JUnit Platform</h2>
+
+                    <p><strong><em>Launcher</em></strong> defines an API for Console, IDEs and Build Tools to find and execute tests.</p>
+
+                    <p><strong><em>TestEngine</em></strong> API to support different test frameworks (e. g. JUnit Jupiter, JUnit (4) Vintage, Spock, Spek ...)
+
+                </section>
+
+                <section>
+                    <h2>Spek</h2>
+                    <a href="http://spekframework.org/docs/latest/"/>Spek</a> is a TestEngine implementation to define Specifications in Kotlin.
+
+                    <pre><code contenteditable>testCompile 'org.jetbrains.spek:spek-api:1.1.2'
+testRuntime 'org.jetbrains.spek:spek-junit-platform-engine:1.1.2'</code></pre>
+                </section>
+
+                <section>
+                    <pre class="stretch"><code data-trim contenteditable>object PasswordEncoderSpec : Spek({
+
+    describe("password encoder") {
+        val passwordEncoder = PasswordEncoder()
+
+        on("encoding a password twice") {
+            val password = "secret"
+            val encoded1 = passwordEncoder.encodePassword(password)
+            val encoded2 = passwordEncoder.encodePassword(password)
+
+            it("should have different encoded values") {
+                assertNotEquals(encoded1, encoded2)
+            }
+        }
+
+        describe("encoding null") {
+            it("should throw Exception") {
+                assertFailsWith(IllegalArgumentException::class, {
+                    passwordEncoder.encodePassword(null)
+                })
+            }
+        }
+    }
+
+})
+</code></pre>
+                </section>
+
+            </div>
+
+        </div>
+
+        <script src="lib/js/head.min.js"></script>
+        <script src="js/reveal.js"></script>
+
+        <script>
+            // More info about config & dependencies:
+            // - https://github.com/hakimel/reveal.js#configuration
+            // - https://github.com/hakimel/reveal.js#dependencies
+            Reveal.initialize({
+                dependencies: [
+                    { src: 'plugin/markdown/marked.js' },
+                    { src: 'plugin/markdown/markdown.js' },
+                    { src: 'plugin/notes/notes.js', async: true },
+                    { src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+                ],
+                    transition: 'fade', // none/fade/slide/convex/concave/zoom
+                    history: true,
+
+                    width: '90%',
+
+            });
+        </script>
+    </body>
+</html>
